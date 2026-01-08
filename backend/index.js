@@ -135,3 +135,18 @@ app.post("/retweet/:tweetid", async(req, res) => {
         return res.status(400).send({error: error.message});
     }
 });
+
+// Notification
+app.put("/api/user/notification", async (req, res) => {
+  const { userId, enabled } = req.body;
+
+  try {
+    await User.findByIdAndUpdate(userId, {
+      notificationsEnabled: enabled
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update notification preference" });
+  }
+});

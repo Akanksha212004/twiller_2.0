@@ -7,16 +7,54 @@ import { LoadingSpinner } from "./loading-spinner";
 import TweetCard from "@/src/components/TweetCard";
 import TweetComposer from "./TweetComposer";
 import axiosInstance from "../lib/axiosinstance";
+import { useAuth } from "../context/AuthContext";
+
+const shouldNotify = (text: string) => {
+  const lower = text.toLowerCase();
+  return lower.includes("cricket") && lower.includes("science");
+};
 
 const Feed = () => {
+  const { user } = useAuth();
   const [tweets, setTweets] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const triggerNotification = (tweetText: string) => {
+    if (
+      !user?.notificationsEnabled ||
+      !("Notification" in window)
+    ) {
+      return;
+    }
+
+    if (Notification.permission === "granted") {
+      new Notification("New Tweet Alert", {
+        body: tweetText,
+      });
+    } else if (Notification.permission === "default") {
+      Notification.requestPermission().then((permission) => {
+        if (permission === "granted") {
+          new Notification("New Tweet Alert", {
+            body: tweetText,
+          });
+        }
+      });
+    }
+  };
 
   const fetchTweets = async () => {
     try {
       setLoading(true);
       const res = await axiosInstance.get("/post");
-      setTweets(res.data || []);
+      const data = res.data || [];
+      setTweets(data);
+
+      /* notify on feed load */
+      data.forEach((tweet: any) => {
+        if (shouldNotify(tweet.content)) {
+          triggerNotification(tweet.content);
+        }
+      });
     } catch (error) {
       console.error("Failed to fetch tweets", error);
     } finally {
@@ -30,6 +68,11 @@ const Feed = () => {
 
   const handleNewTweet = (newTweet: any) => {
     setTweets((prev) => [newTweet, ...prev]);
+
+    /* notify on new tweet */
+    if (shouldNotify(newTweet.content)) {
+      triggerNotification(newTweet.content);
+    }
   };
 
   return (

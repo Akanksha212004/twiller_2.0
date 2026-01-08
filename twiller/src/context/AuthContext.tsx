@@ -13,6 +13,7 @@ import { auth } from "./firebase";
 import axiosInstance from "../lib/axiosinstance";
 
 interface User {
+    notificationsEnabled: undefined;
     _id: string;
     author: any;
     id: string;
