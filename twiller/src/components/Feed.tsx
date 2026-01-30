@@ -8,6 +8,9 @@ import TweetCard from "@/src/components/TweetCard";
 import TweetComposer from "./TweetComposer";
 import axiosInstance from "../lib/axiosinstance";
 import { useAuth } from "../context/AuthContext";
+import AudioTweetComposer from "./AudioTweetComposer";
+import { useTranslation } from "react-i18next";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 const shouldNotify = (text: string) => {
   const lower = text.toLowerCase();
@@ -15,31 +18,40 @@ const shouldNotify = (text: string) => {
 };
 
 const Feed = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
+
   const [tweets, setTweets] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const triggerNotification = (tweetText: string) => {
-    if (
-      !user?.notificationsEnabled ||
-      !("Notification" in window)
-    ) {
-      return;
+  useEffect(() => {
+    if ("Notification" in window) {
+      if (Notification.permission === "default") {
+        Notification.requestPermission();
+      }
     }
+  }, []);
+
+  const triggerNotification = (tweetText: string) => {
+    console.log("Trigger called:", tweetText);
+    console.log("Permission:", Notification.permission);
+    console.log("Enabled:", user?.notificationsEnabled);
+    if (!user?.notificationsEnabled || !("Notification" in window)) return;
 
     if (Notification.permission === "granted") {
-      new Notification("New Tweet Alert", {
+      new Notification("New matching tweet", {
         body: tweetText,
       });
-    } else if (Notification.permission === "default") {
-      Notification.requestPermission().then((permission) => {
-        if (permission === "granted") {
-          new Notification("New Tweet Alert", {
-            body: tweetText,
-          });
-        }
-      });
     }
+    // else if (Notification.permission === "default") {
+    //   Notification.requestPermission().then((permission) => {
+    //     if (permission === "granted") {
+    //       new Notification(t("newTweetAlert"), {
+    //         body: tweetText,
+    //       });
+    //     }
+    //   });
+    // }
   };
 
   const fetchTweets = async () => {
@@ -49,7 +61,6 @@ const Feed = () => {
       const data = res.data || [];
       setTweets(data);
 
-      /* notify on feed load */
       data.forEach((tweet: any) => {
         if (shouldNotify(tweet.content)) {
           triggerNotification(tweet.content);
@@ -69,22 +80,20 @@ const Feed = () => {
   const handleNewTweet = (newTweet: any) => {
     setTweets((prev) => [newTweet, ...prev]);
 
-    /* notify on new tweet */
-    if (shouldNotify(newTweet.content)) {
+    if (newTweet?.content && shouldNotify(newTweet.content)) {
       triggerNotification(newTweet.content);
     }
   };
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Header */}
       <div className="sticky top-0 bg-black/90 backdrop-blur-md border-b border-gray-800 z-10">
-        <div className="px-4 py-3">
-          <h1 className="text-xl font-bold">Home</h1>
+        <div className="px-4 py-3 flex items-center justify-between">
+          <h1 className="text-xl font-bold">{t("home")}</h1>
+          <LanguageSwitcher />
         </div>
 
         <Tabs defaultValue="foryou" className="w-full">
-          {/* Tabs header */}
           <TabsList className="grid w-full grid-cols-2 bg-transparent border-b border-gray-800 px-2 py-1">
             <TabsTrigger
               value="foryou"
@@ -97,15 +106,13 @@ const Feed = () => {
                 data-[state=active]:text-white
               "
             >
-              For You
+              {t("forYou")}
             </TabsTrigger>
-
 
             <TabsTrigger
               value="following"
               className="
-                w-full
-                text-white
+                w-full text-white
                 rounded-full
                 py-2
                 transition-all
@@ -113,27 +120,28 @@ const Feed = () => {
                 data-[state=active]:text-white
               "
             >
-              Following
+              {t("following")}
             </TabsTrigger>
-
           </TabsList>
 
-          {/* For You */}
           <TabsContent value="foryou">
             <TweetComposer onTweetPosted={handleNewTweet} />
+            <AudioTweetComposer />
 
             <div className="divide-y divide-gray-800">
               {loading ? (
                 <Card className="bg-black border-none">
                   <CardContent className="py-12 text-center">
                     <LoadingSpinner />
-                    <p className="mt-2 text-gray-400">Loading tweets...</p>
+                    <p className="mt-2 text-gray-400">
+                      {t("loadingTweets")}
+                    </p>
                   </CardContent>
                 </Card>
               ) : tweets.length === 0 ? (
                 <Card className="bg-black border-none">
                   <CardContent className="py-12 text-center text-gray-400">
-                    No tweets yet
+                    {t("noTweets")}
                   </CardContent>
                 </Card>
               ) : (
@@ -144,13 +152,12 @@ const Feed = () => {
             </div>
           </TabsContent>
 
-          {/* Following (abhi same tweets) */}
           <TabsContent value="following">
             <div className="divide-y divide-gray-800">
               {tweets.length === 0 ? (
                 <Card className="bg-black border-none">
                   <CardContent className="py-12 text-center text-gray-400">
-                    You’re not following anyone yet.
+                    {t("notFollowing")}
                   </CardContent>
                 </Card>
               ) : (
@@ -162,6 +169,14 @@ const Feed = () => {
           </TabsContent>
         </Tabs>
       </div>
+      {/* TEMP: Notification permission button */}
+      {/* <button
+        className="fixed bottom-4 right-4 bg-blue-500 text-white px-4 py-2 rounded z-50"
+        onClick={() => Notification.requestPermission()}
+      >
+        Enable Notifications
+      </button> */}
+
     </div>
   );
 };

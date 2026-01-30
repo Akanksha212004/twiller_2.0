@@ -1,19 +1,16 @@
-"use client"
+"use client";
 
-import {
-    createUserWithEmailAndPassword,
-    GoogleAuthProvider,
-    onAuthStateChanged,
-    signInWithEmailAndPassword,
-    signInWithPopup,
-    signOut
-} from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { auth } from "./firebase";
 import axiosInstance from "../lib/axiosinstance";
 
 interface User {
-    notificationsEnabled: undefined;
+    subscription?: {
+        plan: "free" | "bronze" | "silver" | "gold";
+        tweetsRemaining: number;
+    };
+    notificationsEnabled?: boolean;
     _id: string;
     author: any;
     id: string;
@@ -29,7 +26,8 @@ interface User {
 
 interface AuthContextType {
     user: User | null;
-    login: (email: string, password: string) => Promise<void>;
+    setUser: React.Dispatch<React.SetStateAction<User | null>>;
+    login: (email: string, password: string) => Promise<"OTP_REQUIRED" | "SUCCESS" | undefined>;
     signup: (email: string, password: string, username: string, displayName: string) => Promise<void>;
     updateProfile: (profileData: {
         displayName: string;
@@ -41,6 +39,7 @@ interface AuthContextType {
     logout: () => void;
     isLoading: boolean;
     googlesignin: () => void;
+    verifyOtp: (email: string, otp: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -51,180 +50,148 @@ export const useAuth = () => {
         throw new Error("useAuth must be used within an AuthProvider");
     }
     return context;
-}
+};
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
-    children,
-}) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
 
+    // Persist login state
     useEffect(() => {
-        // Check for existing session
-        const unsubscribe = onAuthStateChanged(auth, async (firebaseuser) => {
-            if (firebaseuser?.email) {
-                try {
-                    const res = await axiosInstance.get('/loggedinuser', {
-                        params: { email: firebaseuser.email }
-                    });
-
-                    if (res.data) {
-                        setUser(res.data);
-                        localStorage.setItem("twitter-user", JSON.stringify(res.data));
-                    }
-                } catch (err) {
-                    console.log("Failed to fetch user:", err);
-                    // logout();
-                }
-            } else {
-                setUser(null);
-                localStorage.removeItem("twitter-user");
-            }
-            setIsLoading(false);
-        });
-        return () => unsubscribe()
+        const savedUser = localStorage.getItem("twitter-user");
+        if (savedUser) {
+            setUser(JSON.parse(savedUser));
+        }
     }, []);
 
+    /* ================= LOGIN ================= */
     const login = async (email: string, password: string) => {
-        setIsLoading(true);
-        // Mock authentication - in real app, this would call an API
-        const usercred = await signInWithEmailAndPassword(auth, email, password);
-        const firebaseuser = usercred.user;
-        const res = await axiosInstance.get("/loggedinuser", {
-            params: { email: firebaseuser.email },
-        });
-        if (res.data) {
-            setUser(res.data);
-            localStorage.setItem("twitter-user", JSON.stringify(res.data));
+        try {
+            setIsLoading(true);
+            const res = await axiosInstance.post("/login", { email, password });
+
+            if (res.data?.otpRequired) {
+                console.log("OTP Required - Halting login flow");
+                return "OTP_REQUIRED";
+            }
+
+            if (res.data?.user) {
+                setUser(res.data.user);
+                localStorage.setItem("twitter-user", JSON.stringify(res.data.user));
+                return "SUCCESS";
+            }
+        } catch (err: any) {
+            throw err;
+        } finally {
+            setIsLoading(false);
         }
-        // const mockUser: User = {
-        //     id: "1",
-        //     username: "johndoe",
-        //     displayName: "John Doe",
-        //     avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-        //     bio: "Software developer passionate about building great products",
-        //     joinedDate: "April 2024",
-        //     author: undefined
-        // };
-        setIsLoading(false);
     };
 
-    const signup = async (
-        email: string,
-        password: string,
-        username: string,
-        displayName: string
-    ) => {
-        setIsLoading(true);
-        // Mock authentication - in real app, this would call an API
-        const usercred = await createUserWithEmailAndPassword(
-            auth,
-            email,
-            password
-        );
-        const user = usercred.user;
-        const newuser: any = {
-            username,
-            displayName,
-            avatar: user.photoURL || "",
-            email: user.email,
-        };
-        const res = await axiosInstance.post('/register', newuser);
-        if (res.data) {
-            setUser(res.data);
-            localStorage.setItem("twitter-user", JSON.stringify(res.data));
+    /* ================= SIGNUP ================= */
+    const signup = async (email: string, password: string, username: string, displayName: string) => {
+        try {
+            setIsLoading(true);
+            const newuser: any = {
+                username,
+                displayName,
+                avatar: "https://api.dicebear.com/7.x/identicon/svg?seed=" + username,
+                email,
+                password,
+            };
+
+            const res = await axiosInstance.post("/register", newuser);
+            if (res.data) {
+                setUser(res.data);
+                localStorage.setItem("twitter-user", JSON.stringify(res.data));
+                alert("Account created successfully!");
+            }
+        } catch (err: any) {
+            const msg = err.response?.data?.includes("duplicate key") 
+                ? "Email already registered." 
+                : "Signup failed.";
+            alert(msg);
+            throw err;
+        } finally {
+            setIsLoading(false);
         }
-        // const mockUser: User = {
-        //     id: "1",
-        //     username: username,
-        //     displayName: displayName,
-        //     avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-        //     bio: "Software developer passionate about building great products",
-        //     joinedDate: "April 2024",
-        //     author: undefined
-        // };
-        setIsLoading(false);
     };
 
+    /* ================= OTP VERIFY ================= */
+    const verifyOtp = async (email: string, otp: string) => {
+        try {
+            setIsLoading(true);
+            const res = await axiosInstance.post("/auth/verify-otp", { email, otp });
+
+            if (res.data?.user) {
+                setUser(res.data.user);
+                localStorage.setItem("twitter-user", JSON.stringify(res.data.user));
+                return true;
+            }
+            return false;
+        } catch (err: any) {
+            throw err;
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    /* ================= LOGOUT ================= */
     const logout = async () => {
         setUser(null);
         await signOut(auth);
         localStorage.removeItem("twitter-user");
     };
-    const updateProfile = async (
-        profileData: {
-            displayName: string;
-            bio: string;
-            location: string;
-            website: string;
-            avatar: string;
-        }
-    ) => {
+
+    /* ================= UPDATE PROFILE ================= */
+    const updateProfile = async (profileData: any) => {
         if (!user) return;
-        setIsLoading(true);
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        const updatedUser: User = {
-            ...user,
-            ...profileData,
-        };
-        const res = await axiosInstance.patch(
-            `/userupdate/${user.email}`,
-            updatedUser
-        );
-        if (res.data) {
-            setUser(updatedUser);
-            localStorage.setItem("twitter-user", JSON.stringify(updatedUser));
+        try {
+            setIsLoading(true);
+            const updatedUser = { ...user, ...profileData };
+            const res = await axiosInstance.patch(`/userupdate/${user.email}`, updatedUser);
+            if (res.data) {
+                setUser(updatedUser);
+                localStorage.setItem("twitter-user", JSON.stringify(updatedUser));
+            }
+        } catch (err) {
+            alert("Failed to update profile");
+        } finally {
+            setIsLoading(false);
         }
-        setIsLoading(false);
     };
 
+    /* ================= GOOGLE SIGN IN ================= */
     const googlesignin = async () => {
-        setIsLoading(true)
-        const googleauthprovider = new GoogleAuthProvider();
-        const result = await signInWithPopup(auth, googleauthprovider);
-        
-        const firebaseuser = result.user;
-        console.log("Google User:", firebaseuser);
+        try {
+            setIsLoading(true);
+            const googleauthprovider = new GoogleAuthProvider();
+            const result = await signInWithPopup(auth, googleauthprovider);
+            const firebaseuser = result.user;
 
-        if (firebaseuser.email) {
-            const res = await axiosInstance.get("/loggedinuser", {
-                params: { email: firebaseuser.email },
-            });
-            if (res.data) {
-                setUser(res.data);
-                localStorage.setItem("twitter-user", JSON.stringify(res.data));
-            } else {
-                const newuser: any = {
-                    username: firebaseuser.email.split('@')[0],
+            if (firebaseuser.email) {
+                const res = await axiosInstance.get("/loggedinuser", {
+                    params: { email: firebaseuser.email },
+                });
+
+                const finalUser = res.data || (await axiosInstance.post("/register", {
+                    username: firebaseuser.email.split("@")[0],
                     displayName: firebaseuser.displayName || "User",
                     avatar: firebaseuser.photoURL || "",
                     email: firebaseuser.email,
-                };
-                const res = await axiosInstance.post('/register', newuser);
-                console.log("Saved to DB:", res.data);
-                if (res.data) {
-                    setUser(res.data);
-                    console.log("State setUser:", res.data);
-                    localStorage.setItem("twitter-user", JSON.stringify(res.data));
-                    console.log("LocalUser:", JSON.parse(localStorage.getItem("twitter-user")!));
-                }
+                })).data;
+
+                setUser(finalUser);
+                localStorage.setItem("twitter-user", JSON.stringify(finalUser));
             }
+        } catch (err) {
+            alert("Google sign-in failed");
+        } finally {
+            setIsLoading(false);
         }
-        setIsLoading(false);
     };
 
     return (
-        <AuthContext.Provider
-            value={{
-                user,
-                login,
-                signup,
-                updateProfile,
-                logout,
-                isLoading,
-                googlesignin,
-            }}
-        >
+        <AuthContext.Provider value={{ user, setUser, login, signup, updateProfile, logout, isLoading, googlesignin, verifyOtp }}>
             {children}
         </AuthContext.Provider>
     );

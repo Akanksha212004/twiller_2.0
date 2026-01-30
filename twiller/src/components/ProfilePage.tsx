@@ -6,8 +6,6 @@ import axiosInstance from "../lib/axiosinstance";
 
 import {
   ArrowLeft,
-  Camera,
-  MoreHorizontal,
   MapPin,
   Link as LinkIcon,
   Calendar,
@@ -26,31 +24,39 @@ import TweetCard from "@/src/components/TweetCard";
 
 const ProfilePage = () => {
   const { user } = useAuth();
+
   const [activeTab, setActiveTab] = useState("posts");
   const [showEditModal, setShowEditModal] = useState(false);
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
+  const [subscription, setSubscription] = useState<any>({
+    plan: "free",
+    tweetsRemaining: 1,
+  });
+
+  const [loginHistory, setLoginHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
   if (!user) return null;
 
-  /* 🔔 sync notification preference */
+  /* ================= SYNC USER DATA ================= */
   useEffect(() => {
-    if (user?.notificationsEnabled !== undefined) {
-      setNotificationsEnabled(user.notificationsEnabled);
+    setNotificationsEnabled(user.notificationsEnabled ?? false);
+
+    if (user.subscription) {
+      setSubscription(user.subscription);
     }
   }, [user]);
 
-  /* fetch user posts */
+  /* ================= FETCH USER POSTS ================= */
   useEffect(() => {
-    const fetchUserPosts = async () => {
+    const fetchPosts = async () => {
       try {
         const res = await axiosInstance.get("/post");
         const userPosts = res.data.filter(
-          (post: any) =>
-            post.author &&
-            (post.author._id === user._id ||
-              post.author === user._id)
+          (p: any) => p.author?._id === user._id
         );
         setPosts(userPosts);
       } catch (err) {
@@ -59,9 +65,31 @@ const ProfilePage = () => {
         setLoading(false);
       }
     };
-    fetchUserPosts();
+    fetchPosts();
   }, [user._id]);
 
+  /* ================= FETCH LOGIN HISTORY ================= */
+  useEffect(() => {
+    const fetchLoginHistory = async () => {
+      try {
+        setHistoryLoading(true);
+        const res = await axiosInstance.get("/api/user/login-history", {
+          params: { email: user.email },
+        });
+        setLoginHistory(res.data.reverse()); // latest first
+      } catch (err) {
+        console.error("Failed to fetch login history", err);
+      } finally {
+        setHistoryLoading(false);
+      }
+    };
+
+    if (user?.email) {
+      fetchLoginHistory();
+    }
+  }, [user.email]);
+
+  /* ================= NOTIFICATION TOGGLE ================= */
   const toggleNotifications = async (value: boolean) => {
     setNotificationsEnabled(value);
     try {
@@ -74,9 +102,28 @@ const ProfilePage = () => {
     }
   };
 
+  /* ================= SUBSCRIBE ================= */
+  const subscribe = async (plan: string) => {
+    try {
+      const res = await axiosInstance.post("/api/subscribe", {
+        userId: user._id,
+        plan,
+      });
+
+      alert(`Subscribed to ${plan} plan`);
+      window.location.reload();
+    } catch (err: any) {
+      if (err.response?.data?.message) {
+        alert(err.response.data.message);
+      } else {
+        console.error("Subscription failed", err);
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Header */}
+      {/* ================= HEADER ================= */}
       <div className="sticky top-0 z-30 bg-black/80 backdrop-blur border-b border-gray-800">
         <div className="flex items-center gap-4 px-4 py-3">
           <Button
@@ -90,14 +137,12 @@ const ProfilePage = () => {
 
           <div>
             <h1 className="text-lg font-bold">{user.displayName}</h1>
-            <p className="text-sm text-gray-400">
-              {posts.length} posts
-            </p>
+            <p className="text-sm text-gray-400">{posts.length} posts</p>
           </div>
         </div>
       </div>
 
-      {/* Banner + Avatar */}
+      {/* ================= PROFILE HEADER ================= */}
       <div className="relative">
         <div className="h-40 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600" />
 
@@ -110,25 +155,20 @@ const ProfilePage = () => {
           </Avatar>
         </div>
 
-        {/* Profile Info */}
         <div className="pt-32 px-4 pb-4">
           <div className="flex items-start justify-between">
             <div>
               <h2 className="text-xl font-bold">{user.displayName}</h2>
               <p className="text-sm text-gray-400">@{user.username}</p>
 
-              {/* 🔔 Notification toggle */}
+              {/* Notifications */}
               <div className="mt-4 flex items-center gap-3">
                 <input
                   type="checkbox"
                   checked={notificationsEnabled}
-                  onChange={(e) =>
-                    toggleNotifications(e.target.checked)
-                  }
+                  onChange={(e) => toggleNotifications(e.target.checked)}
                 />
-                <span className="text-sm">
-                  Enable Tweet Notifications
-                </span>
+                <span className="text-sm">Enable Tweet Notifications</span>
               </div>
 
               {user.bio && (
@@ -144,6 +184,7 @@ const ProfilePage = () => {
                     <span>{user.location}</span>
                   </div>
                 )}
+
                 {user.website && (
                   <div className="flex items-center gap-1">
                     <LinkIcon className="h-4 w-4" />
@@ -161,15 +202,16 @@ const ProfilePage = () => {
                     </a>
                   </div>
                 )}
+
                 {user.joinedDate && (
                   <div className="flex items-center gap-1">
                     <Calendar className="h-4 w-4" />
                     <span>
                       Joined{" "}
-                      {new Date(user.joinedDate).toLocaleDateString(
-                        "en-US",
-                        { month: "long", year: "numeric" }
-                      )}
+                      {new Date(user.joinedDate).toLocaleDateString("en-US", {
+                        month: "long",
+                        year: "numeric",
+                      })}
                     </span>
                   </div>
                 )}
@@ -183,30 +225,59 @@ const ProfilePage = () => {
               Edit profile
             </Button>
           </div>
+
+          {/* ================= SUBSCRIPTION INFO ================= */}
+          <div className="mt-4 text-sm text-gray-400">
+            <p>
+              Current Plan:{" "}
+              <span className="text-white capitalize">
+                {subscription?.plan ?? "free"}
+              </span>
+            </p>
+
+            {subscription?.plan === "free" && (
+              <p className="mt-1 text-xs text-gray-500">
+                Free Plan - ₹0 / month (1 tweet per day)
+              </p>
+            )}
+
+            <p>
+              Tweets Remaining Today:{" "}
+              <span className="text-white">
+                {subscription?.tweetsRemaining ?? 1}
+              </span>
+            </p>
+
+            {/* PAID PLANS */}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button size="sm" onClick={() => subscribe("bronze")}>
+                Bronze - ₹100 / month
+              </Button>
+
+              <Button size="sm" onClick={() => subscribe("silver")}>
+                Silver - ₹300 / month
+              </Button>
+
+              <Button size="sm" onClick={() => subscribe("gold")}>
+                Gold - ₹1000 / month
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* ================= TABS ================= */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex border-b border-gray-800 px-4 bg-transparent rounded-none">
-          {["posts", "replies", "highlights", "articles", "media"].map(
-            (tab) => (
-              <TabsTrigger
-                key={tab}
-                value={tab}
-                className="
-                  px-6 py-4 text-sm font-medium
-                  text-gray-400
-                  hover:bg-gray-900
-                  data-[state=active]:bg-white
-                  data-[state=active]:text-black
-                  rounded-none
-                "
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </TabsTrigger>
-            )
-          )}
+          {["posts", "replies", "highlights", "articles", "media", "login history"].map((tab) => (
+            <TabsTrigger
+              key={tab}
+              value={tab}
+              className="px-6 py-4 text-sm font-medium text-gray-400 hover:bg-gray-900 data-[state=active]:bg-white data-[state=active]:text-black rounded-none"
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
         <TabsContent value="posts">
@@ -225,27 +296,57 @@ const ProfilePage = () => {
           )}
         </TabsContent>
 
-        <TabsContent value="replies">
-          <div className="text-center py-16 text-gray-500">
-            No replies yet
-          </div>
-        </TabsContent>
+        {["replies", "highlights", "articles", "media"].map((tab) => (
+          <TabsContent key={tab} value={tab}>
+            <div className="text-center py-16 text-gray-500">
+              No {tab} yet
+            </div>
+          </TabsContent>
+        ))}
+        <TabsContent value="login history">
+          <div className="p-4">
+            <h2 className="text-lg font-bold mb-4">Login History</h2>
 
-        <TabsContent value="highlights">
-          <div className="text-center py-16 text-gray-500">
-            No highlights yet
-          </div>
-        </TabsContent>
-
-        <TabsContent value="articles">
-          <div className="text-center py-16 text-gray-500">
-            No articles yet
-          </div>
-        </TabsContent>
-
-        <TabsContent value="media">
-          <div className="text-center py-16 text-gray-500">
-            No media yet
+            {historyLoading ? (
+              <p className="text-gray-400">Loading login history...</p>
+            ) : loginHistory.length === 0 ? (
+              <p className="text-gray-400">No login history found</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm border border-gray-800">
+                  <thead className="bg-gray-900">
+                    <tr>
+                      <th className="p-2 border border-gray-800">Browser</th>
+                      <th className="p-2 border border-gray-800">OS</th>
+                      <th className="p-2 border border-gray-800">Device</th>
+                      <th className="p-2 border border-gray-800">IP Address</th>
+                      <th className="p-2 border border-gray-800">Login Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loginHistory.map((item, index) => (
+                      <tr key={index} className="hover:bg-gray-900">
+                        <td className="p-2 border border-gray-800">
+                          {item.browser}
+                        </td>
+                        <td className="p-2 border border-gray-800">
+                          {item.os}
+                        </td>
+                        <td className="p-2 border border-gray-800">
+                          {item.device}
+                        </td>
+                        <td className="p-2 border border-gray-800">
+                          {item.ipAddress}
+                        </td>
+                        <td className="p-2 border border-gray-800">
+                          {new Date(item.loginTime).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </TabsContent>
       </Tabs>

@@ -11,12 +11,16 @@ export default function LandingPage() {
     const [authMode, setAuthMode] = useState<'login' | 'signup'>('signup');
     const { user, logout, googlesignin } = useAuth();
 
+    const handleAuthClose = () => {
+        setShowAuthModal(false);
+    };
+
     const openAuthModal = (mode: 'login' | 'signup') => {
         setAuthMode(mode)
         setShowAuthModal(true);
     };
 
-    if(user) {
+    if (user) {
         return <Feed />
     }
 
@@ -118,7 +122,7 @@ export default function LandingPage() {
 
             <Authmodel
                 isopen={showAuthModal}
-                onclose={() => setShowAuthModal(false)}
+                onclose={handleAuthClose}
                 initialmode={authMode}
             />
         </div>

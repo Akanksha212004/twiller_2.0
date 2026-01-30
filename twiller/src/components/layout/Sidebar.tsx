@@ -64,7 +64,10 @@ const Sidebar = ({ currentPage = 'home', onNavigate }: any) => {
                                 variant="ghost"
                                 className={`w-full justify-start text-xl py-6 px-4 rounded-full hover:bg-gray-900 ${item.current ? "font-bold" : "font-normal"
                                     } text-white hover:text-white`}
-                                onClick={() => onNavigate?.(item.page)}
+                                onClick={() => {
+                                    if (onNavigate) onNavigate(item.page);
+                                }}
+
                             >
                                 <item.icon className="mr-4 h-7 w-7" />
                                 {item.name}
@@ -93,14 +96,6 @@ const Sidebar = ({ currentPage = 'home', onNavigate }: any) => {
                                     <AvatarFallback>{user.displayName[0]}</AvatarFallback>
                                 </Avatar>
 
-                                <div className="flex-1 text-left">
-                                    <p className="font-semibold leading-tight">
-                                        {user.displayName}
-                                    </p>
-                                    <p className="text-sm text-gray-400 leading-tight">
-                                        @{user.username}
-                                    </p>
-                                </div>
 
                                 <MoreHorizontal className="text-gray-400" />
                             </button>
