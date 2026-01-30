@@ -5,7 +5,8 @@ const axiosInstance = axios.create({
     // headers: {
         //     "Content-Type":"application/json"
         // }
-    baseURL: "http://localhost:5000",
+    // baseURL: "http://localhost:5000",
+    baseURL: "https://twiller-2-0-t0ez.onrender.com/",
     withCredentials: false,
 });
 
