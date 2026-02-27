@@ -11,16 +11,16 @@ import {
   Calendar,
 } from "lucide-react";
 
-import { Avatar, AvatarImage, AvatarFallback } from "@/src/components/ui/avatar";
-import { Button } from "@/src/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@/src/components/ui/tabs";
-import Editprofile from "@/src/components/Editprofile";
-import TweetCard from "@/src/components/TweetCard";
+} from "@/components/ui/tabs";
+import Editprofile from "@/components/Editprofile";
+import TweetCard from "@/components/TweetCard";
 
 const ProfilePage = () => {
   const { user } = useAuth();

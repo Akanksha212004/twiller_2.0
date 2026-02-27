@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
 import { Card, CardContent } from "./ui/card";
 import { LoadingSpinner } from "./loading-spinner";
-import TweetCard from "@/src/components/TweetCard";
+import TweetCard from "@/components/TweetCard";
 import TweetComposer from "./TweetComposer";
 import axiosInstance from "../lib/axiosinstance";
 import { useAuth } from "../context/AuthContext";

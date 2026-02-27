@@ -1,9 +1,9 @@
 "use client";
 
-import Twitterlogo from "@/src/components/Twitterlogo";
-import { Button } from "@/src/components/ui/button";
-import { useAuth } from "@/src/context/AuthContext";
-import { Avatar, AvatarImage, AvatarFallback } from "@/src/components/ui/avatar";
+import Twitterlogo from "@/components/Twitterlogo";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/AuthContext";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import { Bell, Bookmark, Home, LogOutIcon, Mail, MoreHorizontal, Search, Settings2, User } from "lucide-react";
 import React from "react";
