@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import { LoadingSpinner } from "@/src/components/loading-spinner";
-import { useAuth } from "@/src/context/AuthContext";
-import Sidebar from "@/src/components/layout/Sidebar";
-import RightSidebar from "@/src/components/layout/RightSidebar";
+import { LoadingSpinner } from "@/components/loading-spinner";
+import { useAuth } from "@/context/AuthContext";
+import Sidebar from "@/components/layout/Sidebar";
+import RightSidebar from "@/components/layout/RightSidebar";
 
 // Pages / components
-import HomeFeed from "@/src/components/Feed";
-import ProfilePage from "@/src/components/ProfilePage";
+import HomeFeed from "@/components/Feed";
+import ProfilePage from "@/components/ProfilePage";
 
 const Mainlayout = ({ children }: any) => {
   const { user, isLoading } = useAuth();
