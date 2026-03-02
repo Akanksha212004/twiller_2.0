@@ -195,7 +195,7 @@ app.post("/post", async (req, res) => {
     if (!user.subscription) {
       user.subscription = {
         plan: "free",
-        tweetsRemaining: 1,
+        tweetsRemaining: 50,
       };
       await user.save();
     }
