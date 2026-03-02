@@ -66,7 +66,10 @@ const isPaymentAllowed = () => {
 const app = express();
 // app.use(cors());
 app.use(cors({
-  origin: true,
+  origin: [
+    "http://localhost:3000",
+    "https://twiller-2-0-66cfyx961-akankshas-projects-8078ced4.vercel.app"
+  ],
   credentials: true
 }));
 app.use(express.json());
@@ -133,6 +136,11 @@ app.post("/register", async (req, res) => {
     // 1. Password ko hash karein save karne se pehle
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      return res.status(400).json({ message: "Email already exists" });
+    }
+
     const user = new User({
       email: email.toLowerCase(), // Lowercase email
       password: hashedPassword,   // Hashed password
@@ -142,7 +150,9 @@ app.post("/register", async (req, res) => {
     });
 
     await user.save();
-    res.json(user);
+    // res.json(user);
+    const safeUser = await User.findById(user._id).select("-password");
+    res.json(safeUser);
   } catch (err) {
     res.status(400).json({ message: "User already exists or invalid data" });
   }
@@ -158,7 +168,9 @@ app.get("/loggedinuser", async (req, res) => {
     await user.save();
   }
 
-  res.json(user);
+  // res.json(user);
+  const safeUser = await User.findById(user._id).select("-password");
+  res.json(safeUser);
 });
 
 /* ================= PROFILE ================= */
@@ -168,13 +180,18 @@ app.patch("/userupdate/:email", async (req, res) => {
     req.body,
     { new: true }
   );
-  res.json(user);
+  // res.json(user);
+  const safeUser = await User.findById(user._id).select("-password");
+  res.json(safeUser);
 });
 
 /* ================= TWEETS ================= */
 app.post("/post", async (req, res) => {
   try {
     const user = await User.findById(req.body.author);
+    if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
     if (!user.subscription) {
       user.subscription = {
         plan: "free",
@@ -211,7 +228,15 @@ app.post("/post", async (req, res) => {
 });
 
 app.post("/post/audio", upload.single("audio"), async (req, res) => {
+
+  if (!req.file) {
+    return res.status(400).json({ message: "Audio file required" });
+  }
+
   const user = await User.findById(req.body.author);
+  if (!user) {
+  return res.status(404).json({ message: "User not found" });
+}
 
   if (!user.subscription) {
     user.subscription = { plan: "free", tweetsRemaining: 1 };
@@ -282,11 +307,17 @@ app.post("/auth/verify-otp", async (req, res) => {
 
   await user.save();
 
+  // res.json({
+  //   success: true,
+  //   message: "OTP verified, login successful",
+  //   user,
+  //   loginCompleted: true,
+  // });
+  const safeUser = await User.findById(user._id).select("-password");
   res.json({
     success: true,
-    message: "OTP verified, login successful",
-    user,
-    loginCompleted: true,
+    message: "Login successful",
+    user: safeUser,
   });
 });
 
@@ -487,11 +518,13 @@ app.post("/login", async (req, res) => {
 
     await user.save();
 
-    res.json({
-      success: true,
-      message: "Login successful",
-      user,
-    });
+    const safeUser = await User.findById(user._id).select("-password");
+
+  res.json({
+    success: true,
+    message: "Login successful",
+    user: safeUser,
+  });
 
   } catch (err) {
     res.status(500).json({ error: err.message });
