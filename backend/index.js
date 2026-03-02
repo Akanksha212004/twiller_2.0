@@ -66,7 +66,10 @@ const isPaymentAllowed = () => {
 const app = express();
 // app.use(cors());
 app.use(cors({
-  origin: "http://localhost:3000", // Aapke frontend ka address
+  origin:  [
+    "http://localhost:3000",
+    "https://twiller-2-0-66cfyx961-akankshas-projects-8078ced4.vercel.app"
+  ],
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   credentials: true
 }));
