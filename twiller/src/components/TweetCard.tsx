@@ -128,7 +128,7 @@ const TweetCard = ({ tweet }: any) => {
               <audio
                 controls
                 className="w-full"
-                src={`http://localhost:5000${tweetState.audioUrl}`}
+                src={`${process.env.NEXT_PUBLIC_BACKEND_URL}${tweetState.audioUrl}`}
               />
             </div>
           )}
