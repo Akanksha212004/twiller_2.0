@@ -42,3 +42,9 @@ Twiller 2.0 is a full-stack social media application designed to replicate the c
 ## Folder Structure
 - /backend: Contains Express server, MongoDB models, and API routes.
 - /twiller: Contains Next.js frontend, components, and global styles.
+
+
+## Live Deployment
+
+Frontend (Vercel): [Twiller Frontend](https://twiller-2-0.vercel.app/)
+Backend (Render): [Twiller Backend](https://twiller-2-0-t0ez.onrender.com/)
